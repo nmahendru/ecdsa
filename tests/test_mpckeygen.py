@@ -13,7 +13,7 @@ def test_polynomial():
 
         t = random.randint(1, 15)
         n = random.randint(t+1,16)
-        print(f"t={t} n={n}")
+        print(f"\nt={t} n={n}")
         assert Polynomial(t,n)
 
 def test_mpc_keypair():
@@ -21,10 +21,10 @@ def test_mpc_keypair():
 
         t = random.randint(1, 15)
         n = random.randint(t+1,16)
-        print(f"t={t} n={n}")
+        print(f"\nt={t} n={n}")
         poly = [Polynomial(t, n) for _ in range(n)]
         mpc_key = MPCKeyPair(poly, t, n)
-        print(f"keypair\n{str(mpc_key)}\n")
+        print(f"keypair\n{str(mpc_key)}")
         assert mpc_key
         assert mpc_key.pub
         assert len(mpc_key.shards) == n
@@ -32,4 +32,3 @@ def test_mpc_keypair():
         # test if the combine pub key is correct
         master_secret = sum([s.secret for s in poly]) % order
         assert mpc_key.pub == pub_key_from_priv(master_secret)
-

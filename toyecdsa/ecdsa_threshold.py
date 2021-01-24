@@ -52,7 +52,11 @@ class MPCKeyPair:
             self.shards[i] %= order
             self.pub = ec_add(poly[i].pub, self.pub)
     def __repr__(self):
-        contents = [f"public_key [{str(self.pub)}]"]
+        contents = [f"public_key [{str(self.pub)}]\n"]
+        row = 1
         for i,v in enumerate(self.shards):
             contents.append(f"shard{i+1}=>[{v:0>64X}]")
+            if row % 2 == 0:
+                contents.append("\n")
+            row += 1
         return " ".join(contents)
