@@ -11,7 +11,10 @@ t = minimum number of participants who cannot sign
 n = total number of participants.
 
 
-Keygen for GG20 can be simplified but not trying to prove anything.
+Keygen for GG20 can be simplified by not trying to prove anything.
+Assumptions:
+1. If you trust all the participants (Honest player assumption) that they will always do the right thing.
+2. All participants will always authenticate all messages from other participants.
 Simplified protocol:
 1. Each participant creates a polynomial of degree t and sends out points on that polynomial to all the
     other participants
