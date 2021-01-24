@@ -145,6 +145,14 @@ class Point(Point):
     def __repr__(self):
         """Uncompressed"""
         return f"04{self.x:0>64X}{self.y:0>64X}"
+    def __eq__(self, other):
+        if isinstance(self, str) and isinstance(other, str):
+            return True
+        if isinstance(self, str) or isinstance(other, str):
+            return  False
+
+
+        return self.x == other.x and self.y == other.y
 
 Signature = namedtuple("Signature", "r s")
 
@@ -177,26 +185,4 @@ class Signature(Signature):
         return f"{self.r:0>64X}{self.s:0>64X}"
 
 
-# private key as an integer
-secret = 0x5
-m = b"Nitin"
 
-# check if order and generator are in sync
-assert O == ec_scalar_mul(generator, order), "Generator seems off"
-
-sig_hex = str(ecdsa_sign(secret, m))
-print(f"pub key\n{pub_key_from_priv(secret)}\n")
-print(f"signature\n{sig_hex}\n")
-
-priv = SigningKey.from_secret_exponent(secret, SECP256k1, hashfunc=sha256)
-pub = priv.verifying_key
-try:
-    pub.verify(bytes.fromhex(sig_hex), m)
-except BadSignatureError as ex:
-    assert False, "Can't verify signature"
-
-try:
-    pub.verify(bytes.fromhex(sig_hex), b"Bad data")
-    assert False, "Signature should not be verifiable."
-except BadSignatureError as ex:
-    assert True

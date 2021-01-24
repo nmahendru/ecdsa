@@ -3,9 +3,10 @@ Tests
 """
 
 import pytest
+import random
 from hashlib import sha256
 from ecdsa import SECP256k1, SigningKey, BadSignatureError
-from toyecdsa.ecdsa_op import ec_scalar_mul, ec_scalar_mul, pub_key_from_priv, O, generator, order, ecdsa_sign
+from toyecdsa.ecdsa_op import ec_scalar_mul, ec_scalar_mul, pub_key_from_priv, O, generator, order, ecdsa_sign, ec_add
 
 def test_ecdsa():
     # private key as an integer
@@ -26,3 +27,13 @@ def test_ecdsa():
     pub = priv.verifying_key
     pub.verify(bytes.fromhex(sig_hex), m)
     pytest.raises(BadSignatureError, pub.verify, bytes.fromhex(sig_hex), b"wrongdata")
+
+def test_point_addition():
+    secret1 = random.randint(0, order - 1)
+    secret2 = random.randint(0, order - 1)
+    pub1 = pub_key_from_priv(secret1)
+    pub2 = pub_key_from_priv(secret2)
+    master_secret = (secret1 + secret2) % order
+    assert ec_add(pub1, pub2)  == pub_key_from_priv(master_secret)
+
+
