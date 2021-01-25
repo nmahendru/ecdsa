@@ -137,7 +137,9 @@ def ec_scalar_mul(P, scalar):
             ret = ec_add(ret, cache)
         cache = ec_add(cache, cache)
         scalar = scalar >> 1
+    assert valid(ret)
     return ret
+
 def pub_key_from_priv(private):
     return ec_scalar_mul(generator, private)
 
