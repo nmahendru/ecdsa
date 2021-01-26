@@ -103,12 +103,12 @@ def remap_shares(t, n, x, secret_y, participants):
     return  lam_iS * secret_y % order
 
 
-def MTA(a, b):
+def MTA(a_encrypted, b):
     """
     multiplicative to additive  conversion for two EC scalars
     """
     nonce = random.randint(0, order - 1)
-    alpha_encrypted, beta = ((a * b) + nonce, -1 * nonce)
+    alpha_encrypted, beta = ((a_encrypted * b) + nonce, -1 * nonce)
     return (alpha_encrypted, beta)
 
 
@@ -130,6 +130,7 @@ class MPCSigner:
         self.delta_i = 0
         self.sigma_i = 0
         self.s_i = 0
+        self.det_nonce
 
 
 def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
