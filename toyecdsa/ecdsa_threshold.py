@@ -28,6 +28,7 @@ import random
 from typing import List
 import copy
 from hashlib import sha256
+from phe import paillier
 
 from .ecdsa_op import Point, Signature, order, p, O, pub_key_from_priv, ec_add, scalar_inv_mod_order, ec_scalar_mul
 class Polynomial:
@@ -40,7 +41,7 @@ class Polynomial:
             self.yval[i - 1] = self.coef[-1]
             for j in range(len(self.coef) - 2, -1, -1):
                 self.yval[i-1]  = (self.yval[i-1] * i  + self.coef[j] )% order
-                
+
         self.secret = self.coef[0]
         self.pub = pub_key_from_priv(self.secret)
 
@@ -107,14 +108,14 @@ def MTA(a, b):
     multiplicative to additive  conversion for two EC scalars
     """
     nonce = random.randint(0, order - 1)
-    alpha, beta = ((a * b) % order + nonce, -1 * nonce)
-    assert (alpha + beta) == a*b % order
-    return (alpha, beta)
+    alpha_encrypted, beta = ((a * b) + nonce, -1 * nonce)
+    return (alpha_encrypted, beta)
 
 
 class MPCSigner:
     def __init__(self, mpc_keypair, index, participants):
         self.keypair = copy.deepcopy(mpc_keypair)
+        self.paillier_pub, self.paillier_priv = paillier.generate_paillier_keypair()
         self.gamma_i = random.randint(0, order - 1)
         self.g_gamma_i = pub_key_from_priv(self.gamma_i)
         self.k_i = random.randint(0, order - 1)
@@ -136,21 +137,21 @@ def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
     for i, pa in enumerate(participants):
         for j in range(i+1, len(participants)):
             # k_i * gamma_j
-            alpha, beta = MTA(signers[i].k_i, signers[j].gamma_i)
-            signers[i].alpha_vec.append(alpha)
+            alpha, beta = MTA(signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].gamma_i)
+            signers[i].alpha_vec.append(signers[i].paillier_priv.decrypt(alpha))
             signers[j].beta_vec.append(beta)
 
-            alpha, beta = MTA(signers[j].k_i, signers[i].gamma_i)
-            signers[j].alpha_vec.append(alpha)
+            alpha, beta = MTA(signers[j].paillier_pub.encrypt(signers[j].k_i), signers[i].gamma_i)
+            signers[j].alpha_vec.append(signers[j].paillier_priv.decrypt(alpha))
             signers[i].beta_vec.append(beta)
 
             # k_i * w_j
-            miu, ni = MTA(signers[i].k_i, signers[j].w_i)
-            signers[i].miu_vec.append(miu)
+            miu, ni = MTA(signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].w_i)
+            signers[i].miu_vec.append(signers[i].paillier_priv.decrypt(miu))
             signers[j].ni_vec.append(ni)
 
-            miu, ni = MTA(signers[j].k_i, signers[i].w_i)
-            signers[j].miu_vec.append(miu)
+            miu, ni = MTA(signers[j].paillier_pub.encrypt(signers[j].k_i), signers[i].w_i)
+            signers[j].miu_vec.append(signers[j].paillier_priv.decrypt(miu))
             signers[i].ni_vec.append(ni)
 
     # No real need for this but adding asserts as I write it up.
