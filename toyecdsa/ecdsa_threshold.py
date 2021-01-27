@@ -32,11 +32,13 @@ from phe import paillier
 
 from .ecdsa_op import Point, Signature, order, p, O, pub_key_from_priv, ec_add, scalar_inv_mod_order, ec_scalar_mul
 class Polynomial:
-    def __init__(self, t, n):
+    def __init__(self, t, n, index, key_id):
+        self.master_wrapping_secret = master_wrapping_secret(index)
+        print(f"len of master_wrapping_secret {len(self.master_wrapping_secret)}")
+        self.key_id = key_id
         self.yval = [0 for _ in range(n)]
-        random.seed()
 
-        self.coef = [random.randint(0, order-1) for _ in range(t+1)]
+        self.coef = [deterministic_integer(self.master_wrapping_secret + bytes(self.key_id, encoding='utf-8'), i) for i in range(1, t+2)]
         for i in range(1, n+1):
             self.yval[i - 1] = self.coef[-1]
             for j in range(len(self.coef) - 2, -1, -1):
@@ -103,22 +105,54 @@ def remap_shares(t, n, x, secret_y, participants):
     return  lam_iS * secret_y % order
 
 
-def MTA(a_encrypted, b):
+def MTA(a_encrypted, b, det_nonce):
     """
     multiplicative to additive  conversion for two EC scalars
     """
-    nonce = random.randint(0, order - 1)
+    nonce = int.from_bytes(det_nonce, byteorder="big") % order
     alpha_encrypted, beta = ((a_encrypted * b) + nonce, -1 * nonce)
     return (alpha_encrypted, beta)
 
+def deterministic_k(nonce):
+    return deterministic_integer(nonce, 1)
+
+def deterministic_gamma(nonce):
+    return deterministic_integer(nonce, 2)
+
+def seq_to_bytes(seq):
+    assert 0 < seq < 17
+    return seq.to_bytes(4, 'big')
+
+def deterministic_integer(nonce, seq):
+    """
+    All the ephemeral secrets  that need to be used should be deterministic.
+    That will make the signature scheme deterministic.
+
+    Each of the k and gamma if deterministic will make w deterministic.
+    """
+    return int.from_bytes(sha256(nonce).digest() + seq_to_bytes(seq), byteorder="big")  % order
+
+def master_wrapping_secret(index):
+    """
+    Generate a wrapping key based on the index. In reality you would never do that.
+    Max index is 16 - a random value I chose for tests.
+
+    This secret could be used to encrypt secret values.(AES - 256)
+    """
+    assert 0 < index < 17
+    return bytes(28) + seq_to_bytes(index)
 
 class MPCSigner:
-    def __init__(self, mpc_keypair, index, participants):
+    def __init__(self, mpc_keypair, index, participants, message=b"Nitin"):
+        self.master_wrapping_secret = master_wrapping_secret(index)
+        self.message = message
+
         self.keypair = copy.deepcopy(mpc_keypair)
         self.paillier_pub, self.paillier_priv = paillier.generate_paillier_keypair()
-        self.gamma_i = random.randint(0, order - 1)
+
+        self.gamma_i = deterministic_gamma(self.det_nonce(index))
         self.g_gamma_i = pub_key_from_priv(self.gamma_i)
-        self.k_i = random.randint(0, order - 1)
+        self.k_i = deterministic_k(self.det_nonce(index))
         self.index = index
         self.w_i = remap_shares(mpc_keypair.t, mpc_keypair.n,
                                 index, mpc_keypair.shards[index - 1], participants)
@@ -130,7 +164,11 @@ class MPCSigner:
         self.delta_i = 0
         self.sigma_i = 0
         self.s_i = 0
-        self.det_nonce
+
+    def det_nonce(self, seq):
+        assert len(self.master_wrapping_secret) == 32
+        assert len(self.message) != 0 and int.from_bytes(self.message, byteorder="big") != 0
+        return self.master_wrapping_secret + seq_to_bytes(seq) + sha256(self.message).digest()
 
 
 def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
@@ -138,20 +176,24 @@ def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
     for i, pa in enumerate(participants):
         for j in range(i+1, len(participants)):
             # k_i * gamma_j
-            alpha, beta = MTA(signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].gamma_i)
+            nonce = signers[i].det_nonce(3)
+            alpha, beta = MTA(signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].gamma_i, nonce)
             signers[i].alpha_vec.append(signers[i].paillier_priv.decrypt(alpha))
             signers[j].beta_vec.append(beta)
 
-            alpha, beta = MTA(signers[j].paillier_pub.encrypt(signers[j].k_i), signers[i].gamma_i)
+            nonce = signers[i].det_nonce(4)
+            alpha, beta = MTA(signers[j].paillier_pub.encrypt(signers[j].k_i), signers[i].gamma_i, nonce)
             signers[j].alpha_vec.append(signers[j].paillier_priv.decrypt(alpha))
             signers[i].beta_vec.append(beta)
 
             # k_i * w_j
-            miu, ni = MTA(signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].w_i)
+            nonce = signers[i].det_nonce(5)
+            miu, ni = MTA(signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].w_i, nonce)
             signers[i].miu_vec.append(signers[i].paillier_priv.decrypt(miu))
             signers[j].ni_vec.append(ni)
 
-            miu, ni = MTA(signers[j].paillier_pub.encrypt(signers[j].k_i), signers[i].w_i)
+            nonce = signers[i].det_nonce(6)
+            miu, ni = MTA(signers[j].paillier_pub.encrypt(signers[j].k_i), signers[i].w_i, nonce)
             signers[j].miu_vec.append(signers[j].paillier_priv.decrypt(miu))
             signers[i].ni_vec.append(ni)
 
