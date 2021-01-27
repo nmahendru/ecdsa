@@ -58,3 +58,4 @@ def test_mpc_signing():
     pub.verify(bytes.fromhex(sig_hex), message)
     pytest.raises(BadSignatureError, pub.verify,
                   bytes.fromhex(sig_hex), b"wrongdata")
+    print(f"signature = {signature}")
