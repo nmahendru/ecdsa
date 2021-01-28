@@ -50,7 +50,7 @@ def test_mpc_signing():
     mpc_keypair = MPCKeyPair(poly, t, n)
     message = b"Nitin"
     participants = [1, 2, 3]
-    signature = mpc_signing(mpc_keypair, message, participants)
+    signature, signers = mpc_signing(mpc_keypair, message, participants)
     sig_hex = str(signature)
     pub = VerifyingKey.from_string(bytes.fromhex(
         str(mpc_keypair.pub)), curve=SECP256k1, hashfunc=sha256)
@@ -59,3 +59,17 @@ def test_mpc_signing():
     pytest.raises(BadSignatureError, pub.verify,
                   bytes.fromhex(sig_hex), b"wrongdata")
     print(f"signature = {signature}")
+
+    signature2, signers2 = mpc_signing(mpc_keypair, message, participants)
+    pub.verify(bytes.fromhex(str(signature2)), message)
+    assert signature == signature2
+    # using the __eq__
+    assert signers == signers2
+    with open('signers.json', 'w+') as f:
+        for v in signers:
+            f.write(str(v))
+            f.write("\n\r")
+    with open('signers2.json', 'w+') as f:
+        for v in signers:
+            f.write(str(v))
+            f.write("\n\r")
