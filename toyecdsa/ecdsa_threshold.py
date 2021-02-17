@@ -44,6 +44,7 @@ class Polynomial:
 
         self.secret = self.coef[0]
         self.pub = pub_key_from_priv(self.secret)
+        self.vss = [pub_key_from_priv(x) for x in self.coef]
 
 
 class MPCKeyPair:
@@ -56,7 +57,18 @@ class MPCKeyPair:
             for pp in poly:
                 self.shards[i] += pp.yval[i]
             self.shards[i] %= order
+            assert pub_key_from_priv(self.shards[i]) == self.calc_vss_mult(i+1, poly)
             self.pub = ec_add(poly[i].pub, self.pub)
+
+    def calc_vss_mult(self, player, poly: List[Polynomial]):
+            start = 0
+            final_point = O
+            for p in poly:
+                start = 0
+                for v in p.vss:
+                    final_point = ec_add(ec_scalar_mul(v, pow(player, start)), final_point)
+                    start += 1
+            return final_point
 
     def __repr__(self):
         contents = [f"public_key [{str(self.pub)}]\n"]
@@ -130,7 +142,6 @@ class MPCSigner:
         self.delta_i = 0
         self.sigma_i = 0
         self.s_i = 0
-        self.det_nonce
 
 
 def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
