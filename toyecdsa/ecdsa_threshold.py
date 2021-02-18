@@ -44,6 +44,7 @@ class Polynomial:
 
         self.secret = self.coef[0]
         self.pub = pub_key_from_priv(self.secret)
+        # each party will publish the public points for the coefficients of their secret polynomial
         self.vss = [pub_key_from_priv(x) for x in self.coef]
 
 
@@ -57,18 +58,21 @@ class MPCKeyPair:
             for pp in poly:
                 self.shards[i] += pp.yval[i]
             self.shards[i] %= order
-            assert pub_key_from_priv(self.shards[i]) == self.calc_vss_mult(i+1, poly)
+            assert pub_key_from_priv(self.shards[i]) == self.calc_vss_proof(i+1, poly)
             self.pub = ec_add(poly[i].pub, self.pub)
-
-    def calc_vss_mult(self, player, poly: List[Polynomial]):
+    
+    def calc_vss_proof(self, player, poly: List[Polynomial]):
+        """
+        Calculate the right side of the vss equation in section 2.8 in https://eprint.iacr.org/2020/540.pdf
+        """
+        start = 0
+        final_point = O
+        for p in poly:
             start = 0
-            final_point = O
-            for p in poly:
-                start = 0
-                for v in p.vss:
-                    final_point = ec_add(ec_scalar_mul(v, pow(player, start)), final_point)
-                    start += 1
-            return final_point
+            for v in p.vss:
+                final_point = ec_add(ec_scalar_mul(v, pow(player, start)), final_point)
+                start += 1
+        return final_point
 
     def __repr__(self):
         contents = [f"public_key [{str(self.pub)}]\n"]
