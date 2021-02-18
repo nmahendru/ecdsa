@@ -31,6 +31,9 @@ from hashlib import sha256
 from phe import paillier
 
 from .ecdsa_op import Point, Signature, order, p, O, pub_key_from_priv, ec_add, scalar_inv_mod_order, ec_scalar_mul
+
+from .schnorr_nizk import proove, verify
+
 class Polynomial:
     def __init__(self, t, n):
         self.yval = [0 for _ in range(n)]
@@ -54,12 +57,17 @@ class MPCKeyPair:
         self.n = n
         self.shards = [0] * n
         self.pub = O
+        self.proof_ni_x_i = []
         for i in range(n):
             for pp in poly:
                 self.shards[i] += pp.yval[i]
             self.shards[i] %= order
             assert pub_key_from_priv(self.shards[i]) == self.calc_vss_proof(i+1, poly)
             self.pub = ec_add(poly[i].pub, self.pub)
+            self.proof_ni_x_i.append(proove(self.shards[i]))
+            # In a real implementation all the other parties would verify this proof for this i.
+            assert verify(self.proof_ni_x_i[-1])
+
     
     def calc_vss_proof(self, player, poly: List[Polynomial]):
         """

@@ -155,6 +155,13 @@ class Point(Point):
 
 
         return self.x == other.x and self.y == other.y
+    
+def compressed_hex(point) -> str:
+    if point.y % 2 == 0:
+        return f"02{point.x:0>64X}"
+    else:
+        return f"03{point.x:0>64X}"
+
 
 Signature = namedtuple("Signature", "r s")
 
