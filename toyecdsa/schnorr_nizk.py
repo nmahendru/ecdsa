@@ -50,7 +50,4 @@ def verify(proof: SchnorrNIZK) -> bool:
     if proof.c != challenge:
         return False
     # verify V = G * [r] + A * [c]
-    if not proof.V == ec_add(ec_scalar_mul(generator, proof.r), ec_scalar_mul(proof.A, proof.c)):
-        return False
-    else:
-        return True
+    return proof.V == ec_add(ec_scalar_mul(generator, proof.r), ec_scalar_mul(proof.A, proof.c))
