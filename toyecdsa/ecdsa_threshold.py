@@ -60,6 +60,8 @@ class MPCKeyPair:
         self.shards = [0] * n
         self.pub = O
         self.proof_ni_x_i = []
+        self.paillier = [paillier.generate_paillier_keypair() for _ in range(n)]
+        self.paillier_proof = [squarefree_proof(x[1].p, x[1].q) for x in self.paillier]
         for i in range(n):
             for pp in poly:
                 self.shards[i] += pp.yval[i]
@@ -69,6 +71,7 @@ class MPCKeyPair:
             self.proof_ni_x_i.append(proove(self.shards[i]))
             # In a real implementation all the other parties would verify this proof for this i.
             assert verify(self.proof_ni_x_i[-1])
+            assert squarefree_verify(self.paillier_proof[i], self.paillier[i][0].n)
 
     
     def calc_vss_proof(self, player, poly: List[Polynomial]):
@@ -141,8 +144,8 @@ def MTA(a_encrypted, b):
 class MPCSigner:
     def __init__(self, mpc_keypair, index, participants):
         self.keypair = copy.deepcopy(mpc_keypair)
-        self.paillier_pub, self.paillier_priv = paillier.generate_paillier_keypair()
-        self.paillier_squarefree_proof = squarefree_proof(self.paillier_priv.p, self.paillier_priv.q) 
+        assert index in participants
+        self.paillier_pub, self.paillier_priv = mpc_keypair.paillier[index-1]
         self.gamma_i = random.randint(0, order - 1)
         self.g_gamma_i = pub_key_from_priv(self.gamma_i)
         self.k_i = random.randint(0, order - 1)
@@ -239,10 +242,6 @@ def mpc_signing(mpc_keypair, message, participants) -> Signature:
     t = mpc_keypair.t
     n = mpc_keypair.n
     signers = [MPCSigner(mpc_keypair, i + 1, participants) for i in range(n)]
-    # verify square paillier key correctness.
-    # in actual implementation each party verifies the proof from others during key generation.
-    for k in signers:
-        assert squarefree_verify(k.paillier_squarefree_proof, k.paillier_priv.p * k.paillier_priv.q)
     phase1_phase2(signers, participants)
     r = phase3_phase4(signers, participants)
     return phase6(r, signers, participants, message)

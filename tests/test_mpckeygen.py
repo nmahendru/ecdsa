@@ -21,7 +21,7 @@ def test_polynomial():
         assert Polynomial(t,n)
 
 def test_mpc_keypair():
-    for i in range(5):
+    for i in range(2):
 
         t = random.randint(1, 15)
         n = random.randint(t+1,16)
