@@ -29,13 +29,10 @@ from typing import List
 import copy
 from hashlib import sha256
 from phe import paillier
-
 from .ecdsa_op import Point, Signature, order, p, O, pub_key_from_priv, ec_add, scalar_inv_mod_order, ec_scalar_mul
-
 from .schnorr_nizk import proove, verify
 from .paillier_squarefree_nizk import proove as squarefree_proof
 from .paillier_squarefree_nizk import verify as squarefree_verify
-
 class Polynomial:
     def __init__(self, t, n):
         self.yval = [0 for _ in range(n)]
@@ -45,7 +42,7 @@ class Polynomial:
         for i in range(1, n+1):
             self.yval[i - 1] = self.coef[-1]
             for j in range(len(self.coef) - 2, -1, -1):
-                self.yval[i-1]  = (self.yval[i-1] * i  + self.coef[j] )% order
+                self.yval[i-1] = (self.yval[i-1] * i + self.coef[j]) % order
 
         self.secret = self.coef[0]
         self.pub = pub_key_from_priv(self.secret)
@@ -60,20 +57,23 @@ class MPCKeyPair:
         self.shards = [0] * n
         self.pub = O
         self.proof_ni_x_i = []
-        self.paillier = [paillier.generate_paillier_keypair() for _ in range(n)]
-        self.paillier_proof = [squarefree_proof(x[1].p, x[1].q) for x in self.paillier]
+        self.paillier = [paillier.generate_paillier_keypair()
+                         for _ in range(n)]
+        self.paillier_proof = [squarefree_proof(
+            x[1].p, x[1].q) for x in self.paillier]
         for i in range(n):
             for pp in poly:
                 self.shards[i] += pp.yval[i]
             self.shards[i] %= order
-            assert pub_key_from_priv(self.shards[i]) == self.calc_vss_proof(i+1, poly)
+            assert pub_key_from_priv(
+                self.shards[i]) == self.calc_vss_proof(i+1, poly)
             self.pub = ec_add(poly[i].pub, self.pub)
             self.proof_ni_x_i.append(proove(self.shards[i]))
             # In a real implementation all the other parties would verify this proof for this i.
             assert verify(self.proof_ni_x_i[-1])
-            assert squarefree_verify(self.paillier_proof[i], self.paillier[i][0].n)
+            assert squarefree_verify(
+                self.paillier_proof[i], self.paillier[i][0].n)
 
-    
     def calc_vss_proof(self, player, poly: List[Polynomial]):
         """
         Calculate the right side of the vss equation in section 2.8 in https://eprint.iacr.org/2020/540.pdf
@@ -83,7 +83,8 @@ class MPCKeyPair:
         for p in poly:
             start = 0
             for v in p.vss:
-                final_point = ec_add(ec_scalar_mul(v, pow(player, start)), final_point)
+                final_point = ec_add(ec_scalar_mul(
+                    v, pow(player, start)), final_point)
                 start += 1
         return final_point
 
@@ -129,7 +130,7 @@ def remap_shares(t, n, x, secret_y, participants):
             denom = denom * (i - x)
     denom_inv = scalar_inv_mod_order(denom)
     lam_iS = (num * denom_inv) % order
-    return  lam_iS * secret_y % order
+    return lam_iS * secret_y % order
 
 
 def MTA(a_encrypted, b):
@@ -138,7 +139,12 @@ def MTA(a_encrypted, b):
     """
     nonce = random.randint(0, order - 1)
     alpha_encrypted, beta = ((a_encrypted * b) + nonce, -1 * nonce)
-    return (alpha_encrypted, beta)
+    B = pub_key_from_priv(b)
+    B_prime = pub_key_from_priv(nonce)
+    B_proof = proove(b)
+    B_prime_proof = proove(nonce)
+    # return (alpha_encrypted, beta, B, B_prime, B_proof, B_prime_proof)
+    return (alpha_encrypted, beta, B, B_prime, B_proof, B_prime_proof)
 
 
 class MPCSigner:
@@ -167,20 +173,33 @@ def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
     for i, pa in enumerate(participants):
         for j in range(i+1, len(participants)):
             # k_i * gamma_j
-            alpha, beta = MTA(signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].gamma_i)
-            signers[i].alpha_vec.append(signers[i].paillier_priv.decrypt(alpha))
+            alpha_enc, beta, B, B_prime, B_proof, B_prime_proof = MTA(
+                signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].gamma_i)
+            alpha = signers[i].paillier_priv.decrypt(alpha_enc)
+            # alice verifies Bob Proof. Please refer to section 5 in:
+            # https://eprint.iacr.org/2019/114.pdf
+            assert pub_key_from_priv(alpha) == ec_add(
+                ec_scalar_mul(B, signers[i].k_i), B_prime)
+            verify(B_proof)
+            verify(B_prime_proof)
+            signers[i].alpha_vec.append(alpha)
+
             signers[j].beta_vec.append(beta)
 
-            alpha, beta = MTA(signers[j].paillier_pub.encrypt(signers[j].k_i), signers[i].gamma_i)
-            signers[j].alpha_vec.append(signers[j].paillier_priv.decrypt(alpha))
+            alpha, beta,_,_,_,_ = MTA(signers[j].paillier_pub.encrypt(
+                signers[j].k_i), signers[i].gamma_i)
+            signers[j].alpha_vec.append(
+                signers[j].paillier_priv.decrypt(alpha))
             signers[i].beta_vec.append(beta)
 
             # k_i * w_j
-            miu, ni = MTA(signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].w_i)
+            miu, ni,_,_,_,_ = MTA(signers[i].paillier_pub.encrypt(
+                signers[i].k_i), signers[j].w_i)
             signers[i].miu_vec.append(signers[i].paillier_priv.decrypt(miu))
             signers[j].ni_vec.append(ni)
 
-            miu, ni = MTA(signers[j].paillier_pub.encrypt(signers[j].k_i), signers[i].w_i)
+            miu, ni,_,_,_,_ = MTA(signers[j].paillier_pub.encrypt(
+                signers[j].k_i), signers[i].w_i)
             signers[j].miu_vec.append(signers[j].paillier_priv.decrypt(miu))
             signers[i].ni_vec.append(ni)
 
@@ -207,6 +226,7 @@ def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
             ]
         ) % order
 
+
 def calculate_R(delta_inv, g_gamma_i_vec: List[int]):
     g_gamma = g_gamma_i_vec[0]
     for v in g_gamma_i_vec[1:]:
@@ -220,7 +240,7 @@ def phase3_phase4(signers: List[MPCSigner], participants: List[int]):
     """
     assert len(signers) == len(participants)
     delta = 0
-    for i,v in enumerate(signers):
+    for i, v in enumerate(signers):
         delta += v.delta_i
     delta %= order
     delta_inv = scalar_inv_mod_order(delta)
@@ -228,15 +248,17 @@ def phase3_phase4(signers: List[MPCSigner], participants: List[int]):
     r = R.x % order
     return r
 
+
 def phase6(r, signers: List[MPCSigner], participants, message: bytes):
     assert len(signers) == len(participants)
     m = int.from_bytes(sha256(message).digest(), byteorder='big')
     s_vec = []
-    for i,v in enumerate(signers):
-        v.s_i =  (r * v.sigma_i + m * v.k_i ) % order
+    for i, v in enumerate(signers):
+        v.s_i = (r * v.sigma_i + m * v.k_i) % order
         s_vec.append(v.s_i)
     s = sum(s_vec) % order
     return Signature(r, s)
+
 
 def mpc_signing(mpc_keypair, message, participants) -> Signature:
     t = mpc_keypair.t
