@@ -25,6 +25,7 @@ Simplified protocol:
 
 
 import random
+import secrets
 from typing import List
 import copy
 from hashlib import sha256
@@ -33,12 +34,14 @@ from .ecdsa_op import Point, Signature, order, p, O, pub_key_from_priv, ec_add, 
 from .schnorr_nizk import proove, verify
 from .paillier_squarefree_nizk import proove as squarefree_proof
 from .paillier_squarefree_nizk import verify as squarefree_verify
+from .toyrand import int_sample
+
 class Polynomial:
     def __init__(self, t, n):
         self.yval = [0 for _ in range(n)]
         random.seed()
 
-        self.coef = [random.randint(0, order-1) for _ in range(t+1)]
+        self.coef = [int_sample(order) for _ in range(t+1)]
         for i in range(1, n+1):
             self.yval[i - 1] = self.coef[-1]
             for j in range(len(self.coef) - 2, -1, -1):
@@ -137,7 +140,7 @@ def MTA(a_encrypted, b):
     """
     multiplicative to additive  conversion for two EC scalars
     """
-    nonce = random.randint(0, order - 1)
+    nonce = int_sample(order)
     alpha_encrypted, beta = ((a_encrypted * b) + nonce, -1 * nonce)
     B = pub_key_from_priv(b)
     B_prime = pub_key_from_priv(nonce)
@@ -152,9 +155,9 @@ class MPCSigner:
         self.keypair = copy.deepcopy(mpc_keypair)
         assert index in participants
         self.paillier_pub, self.paillier_priv = mpc_keypair.paillier[index-1]
-        self.gamma_i = random.randint(0, order - 1)
+        self.gamma_i = int_sample(order)
         self.g_gamma_i = pub_key_from_priv(self.gamma_i)
-        self.k_i = random.randint(0, order - 1)
+        self.k_i = int_sample(order)
         self.index = index
         self.w_i = remap_shares(mpc_keypair.t, mpc_keypair.n,
                                 index, mpc_keypair.shards[index - 1], participants)

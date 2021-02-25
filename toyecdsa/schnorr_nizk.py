@@ -5,6 +5,7 @@ Please refer to https://tools.ietf.org/html/rfc8235#section-3.2
 """
 
 from .ecdsa_op import ec_add, ec_scalar_mul, O, order, pub_key_from_priv, generator, valid, compressed_hex
+from .toyrand import int_sample
 from collections import namedtuple
 
 from hashlib import sha256
@@ -20,7 +21,7 @@ def proove(secret: int, user_id: bytes=b"DEFAULT") -> SchnorrNIZK:
     Non Interactive zero knowledge proof that the proover knows the secret.
     """
     random.seed()
-    temp_ecdsa_private = random.randint(0, order - 2)
+    temp_ecdsa_private = int_sample(order - 1)
     temp_ecdsa_public = pub_key_from_priv(temp_ecdsa_private)
     V = pub_key_from_priv(secret)
     # calculate challenge use Fiat Shamir Transform.

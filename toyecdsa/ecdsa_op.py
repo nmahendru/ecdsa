@@ -22,6 +22,7 @@ Utilities for:
 from hashlib  import sha256
 import random
 from ecdsa import SECP256k1, SigningKey, BadSignatureError
+from .toyrand import int_sample
 
 # Create a simple Point class to represent points on the curve
 from collections import namedtuple
@@ -182,7 +183,7 @@ def ecdsa_sign(private, message):
     s = 0
     while s == 0:
         while r == 0:
-            k = random.randint(0, order - 1)
+            k = int_sample(order)
             R = ec_scalar_mul(generator, k)
             r = R.x % order
         s = scalar_inv_mod_order(k) * (z + r*private) % order
