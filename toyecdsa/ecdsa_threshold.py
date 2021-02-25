@@ -167,6 +167,13 @@ class MPCSigner:
         self.sigma_i = 0
         self.s_i = 0
 
+def mta_proof_check(B, B_prime, B_proof, B_prime_proof, alpha, a):
+        # alice verifies Bob's Proof. Please refer to section 5 in:
+        # https://eprint.iacr.org/2019/114.pdf
+        assert pub_key_from_priv(alpha) == ec_add(
+            ec_scalar_mul(B, a), B_prime)
+        verify(B_proof)
+        verify(B_prime_proof)
 
 def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
     assert len(signers) == len(participants)
@@ -176,20 +183,15 @@ def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
             alpha_enc, beta, B, B_prime, B_proof, B_prime_proof = MTA(
                 signers[i].paillier_pub.encrypt(signers[i].k_i), signers[j].gamma_i)
             alpha = signers[i].paillier_priv.decrypt(alpha_enc)
-            # alice verifies Bob Proof. Please refer to section 5 in:
-            # https://eprint.iacr.org/2019/114.pdf
-            assert pub_key_from_priv(alpha) == ec_add(
-                ec_scalar_mul(B, signers[i].k_i), B_prime)
-            verify(B_proof)
-            verify(B_prime_proof)
+            mta_proof_check(B, B_prime, B_proof, B_prime_proof, alpha, signers[i].k_i)
             signers[i].alpha_vec.append(alpha)
-
             signers[j].beta_vec.append(beta)
 
-            alpha, beta,_,_,_,_ = MTA(signers[j].paillier_pub.encrypt(
+            alpha_enc, beta, B, B_prime, B_proof, B_prime_proof = MTA(signers[j].paillier_pub.encrypt(
                 signers[j].k_i), signers[i].gamma_i)
-            signers[j].alpha_vec.append(
-                signers[j].paillier_priv.decrypt(alpha))
+            alpha = signers[j].paillier_priv.decrypt(alpha_enc)
+            mta_proof_check(B, B_prime, B_proof, B_prime_proof, alpha, signers[j].k_i)
+            signers[j].alpha_vec.append(alpha)
             signers[i].beta_vec.append(beta)
 
             # k_i * w_j
