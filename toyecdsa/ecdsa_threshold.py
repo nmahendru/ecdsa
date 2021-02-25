@@ -195,14 +195,18 @@ def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
             signers[i].beta_vec.append(beta)
 
             # k_i * w_j
-            miu, ni,_,_,_,_ = MTA(signers[i].paillier_pub.encrypt(
+            miu_enc, ni, B, B_prime, B_proof, B_prime_proof = MTA(signers[i].paillier_pub.encrypt(
                 signers[i].k_i), signers[j].w_i)
-            signers[i].miu_vec.append(signers[i].paillier_priv.decrypt(miu))
+            miu = signers[i].paillier_priv.decrypt(miu_enc)
+            mta_proof_check(B, B_prime, B_proof, B_prime_proof, miu, signers[i].k_i)
+            signers[i].miu_vec.append(miu)
             signers[j].ni_vec.append(ni)
 
-            miu, ni,_,_,_,_ = MTA(signers[j].paillier_pub.encrypt(
+            miu_enc, ni, B, B_prime, B_proof, B_prime_proof = MTA(signers[j].paillier_pub.encrypt(
                 signers[j].k_i), signers[i].w_i)
-            signers[j].miu_vec.append(signers[j].paillier_priv.decrypt(miu))
+            miu = signers[j].paillier_priv.decrypt(miu_enc)
+            mta_proof_check(B, B_prime, B_proof, B_prime_proof, miu, signers[j].k_i)
+            signers[j].miu_vec.append(miu)
             signers[i].ni_vec.append(ni)
 
     # No real need for this but adding asserts as I write it up.
