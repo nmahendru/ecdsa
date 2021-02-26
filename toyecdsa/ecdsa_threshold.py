@@ -180,6 +180,7 @@ def mta_proof_check(B, B_prime, B_proof, B_prime_proof, alpha, a):
 
 def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
     assert len(signers) == len(participants)
+    
     for i, pa in enumerate(participants):
         for j in range(i+1, len(participants)):
             # k_i * gamma_j
@@ -270,9 +271,9 @@ def phase6(r, signers: List[MPCSigner], participants, message: bytes):
 
 
 def mpc_signing(mpc_keypair, message, participants) -> Signature:
-    t = mpc_keypair.t
-    n = mpc_keypair.n
-    signers = [MPCSigner(mpc_keypair, i + 1, participants) for i in range(n)]
+    signers = []
+    for index in participants:
+        signers.append(MPCSigner(mpc_keypair, index, participants))
     phase1_phase2(signers, participants)
     r = phase3_phase4(signers, participants)
     return phase6(r, signers, participants, message)
