@@ -9,16 +9,6 @@ The threshold scheme is based on values t,n
 t = minimum number of participants who cannot sign
 n = total number of participants.
 
-
-Keygen for GG20 can be simplified by not trying to prove anything.
-Assumptions:
-1. If you trust all the participants (Honest player assumption) that they will always do the right thing.
-2. All participants will always authenticate all messages from other participants.
-Simplified protocol:
-1. Each participant creates a polynomial of degree t and sends out yval on that polynomial to all the
-    other participants
-2. Each participant adds the yval it receives from other participants. In the end all of them have a point
-    on a line that no one knows about. If t + 1 participants cooperate then they can sign a message.
 """
 
 
