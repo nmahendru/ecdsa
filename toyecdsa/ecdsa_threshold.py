@@ -35,6 +35,7 @@ from .schnorr_nizk import proove, verify
 from .paillier_squarefree_nizk import proove as squarefree_proof
 from .paillier_squarefree_nizk import verify as squarefree_verify
 from .toyrand import int_sample
+from .commitment_ro import commit, verify_commitment
 
 class Polynomial:
     def __init__(self, t, n):
@@ -157,6 +158,7 @@ class MPCSigner:
         self.paillier_pub, self.paillier_priv = mpc_keypair.paillier[index-1]
         self.gamma_i = int_sample(order)
         self.g_gamma_i = pub_key_from_priv(self.gamma_i)
+        self.g_gamma_i_commit = commit(bytes.fromhex(str(self.g_gamma_i)))
         self.k_i = int_sample(order)
         self.index = index
         self.w_i = remap_shares(mpc_keypair.t, mpc_keypair.n,
@@ -169,6 +171,7 @@ class MPCSigner:
         self.delta_i = 0
         self.sigma_i = 0
         self.s_i = 0
+        self.commitments = []
 
 def mta_proof_check(B, B_prime, B_proof, B_prime_proof, alpha, a):
         # alice verifies Bob's Proof. Please refer to section 5 in:
@@ -180,8 +183,13 @@ def mta_proof_check(B, B_prime, B_proof, B_prime_proof, alpha, a):
 
 def phase1_phase2(signers: List[MPCSigner], participants: List[int]):
     assert len(signers) == len(participants)
-    
-    for i, pa in enumerate(participants):
+    # gather commitments for g_gamma_i from other signers.
+    # these values need to be verified later in beginning of phase 4
+    for i, v in enumerate(participants):
+        for j, _ in enumerate(participants):
+            if j != i:
+                signers[i].commitments.append(signers[j].g_gamma_i_commit[0]) 
+    for i, _ in enumerate(participants):
         for j in range(i+1, len(participants)):
             # k_i * gamma_j
             alpha_enc, beta, B, B_prime, B_proof, B_prime_proof = MTA(
@@ -249,6 +257,18 @@ def phase3_phase4(signers: List[MPCSigner], participants: List[int]):
     This returns r of the signature.
     """
     assert len(signers) == len(participants)
+    # verify commitments shipped out in phase 1.
+    for i, v in enumerate(participants):
+        k = 0
+        # each participant verifies the commitment from other participants.
+        # only if these commitments verify can we proceed.
+        for j, _ in enumerate(participants):
+            if j != i:
+                r = signers[j].g_gamma_i_commit[1]
+                bytes_g_gamma = bytes.fromhex(str(signers[j].g_gamma_i))
+                assert verify_commitment(signers[i].commitments[k], r, bytes_g_gamma)
+                k += 1
+
     delta = 0
     for i, v in enumerate(signers):
         delta += v.delta_i
@@ -263,7 +283,7 @@ def phase6(r, signers: List[MPCSigner], participants, message: bytes):
     assert len(signers) == len(participants)
     m = int.from_bytes(sha256(message).digest(), byteorder='big')
     s_vec = []
-    for i, v in enumerate(signers):
+    for _, v in enumerate(signers):
         v.s_i = (r * v.sigma_i + m * v.k_i) % order
         s_vec.append(v.s_i)
     s = sum(s_vec) % order
