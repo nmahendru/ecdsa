@@ -194,5 +194,7 @@ class Signature(Signature):
     def __repr__(self):
         return f"{self.r:0>64X}{self.s:0>64X}"
 
+    def __eq__(self, other):
+        return self.r == other.r and self.s == other.s
 
 
