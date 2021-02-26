@@ -8,9 +8,6 @@ Utilities for:
     5. EC scalar multiplication
     6. Scalar inverse mod order and mod field size.
 
-    Credit to:
-    https://stackoverflow.com/questions/31074172/elliptic-curve-point-addition-over-a-finite-field-in-python
-
     Point addition is implementing:
     https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Point_addition
 
