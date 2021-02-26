@@ -1,5 +1,6 @@
 1. Main Threshold ECDSA paper:
     - [GG20](https://eprint.iacr.org/2020/540.pdf)
+    - [GG18](https://eprint.iacr.org/2019/114.pdf)
 2. For Schnorr NIZK in order to proove a that you know a secret scalar:
     - [NIZK](https://tools.ietf.org/html/rfc8235#section-3.)
 3. Proove that the modulus of your paillier key is square free:
