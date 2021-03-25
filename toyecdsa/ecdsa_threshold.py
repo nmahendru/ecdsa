@@ -29,10 +29,22 @@ from .commitment_ro import commit, verify_commitment
 
 class Polynomial:
     def __init__(self, t, n):
+        # y coordinates to be stored in this list.
         self.yval = [0 for _ in range(n)]
         random.seed()
-
+        # the coefficients chosen below represent the polynomial
         self.coef = [int_sample(order) for _ in range(t+1)]
+        # below loop solves for x = 1, 2, 3.... and obtains the y value. 
+        # For example let the polynomial be y = ax^2 + bx + c
+        # self.coef = [c, b, a]
+        # This can be evaulated in degree number of steps. degree is 2 so two steps:
+        # step 0(initialize):
+        #   y = self.coef[-1] = a
+        # step 1(multiply with x and add next coef):
+        #   y = a*(x) + b
+        # step 2(multiply with x and add next coef):
+        #   y = (a*(x) + b) * (x) + c
+        # the loop var i represents x.
         for i in range(1, n+1):
             self.yval[i - 1] = self.coef[-1]
             for j in range(len(self.coef) - 2, -1, -1):
