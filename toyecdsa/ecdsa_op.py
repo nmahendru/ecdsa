@@ -112,6 +112,7 @@ def ec_add(P, Q):
     else:
         # Cases not involving the origin.
         if P == Q:
+            # Calculate lamba using https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Point_doubling
             lambdA = (3 * P.x**2 + a) * scalar_inv_mod_p(2 * P.y)
         else:
             lambdA = (Q.y - P.y) * scalar_inv_mod_p(Q.x - P.x)
@@ -146,8 +147,9 @@ class Point(Point):
         """Uncompressed"""
         return f"04{self.x:0>64X}{self.y:0>64X}"
     def __eq__(self, other):
+        # these two if statements are a hack for letting equality checks pass.
         if isinstance(self, str) and isinstance(other, str):
-            return True
+            return self == other
         if isinstance(self, str) or isinstance(other, str):
             return  False
 
@@ -172,8 +174,6 @@ def ecdsa_sign(private, message):
     e_bit_len = e.bit_length()
     print(f"bit lengths order={L_n}, e={e_bit_len}")
     z = e if L_n >= e_bit_len else e >> (e_bit_len - L_n)
-    # not a great way to seed the rng
-    random.seed()
     r = 0
     k = 0
     R = O
